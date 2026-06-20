@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Todoアプリ</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    min-height: 100vh;
+  }
+
+  header {
+    background: #0077c7;
+    color: #fff;
+    padding: 20px 16px;
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+  }
+
+  .container {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+
+  /* 追加フォーム */
+  .add-form {
+    background: #fff;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+
+  .add-form input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-bottom: 10px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .add-form input:focus {
+    border-color: #0077c7;
+  }
+
+  .add-form button {
+    width: 100%;
+    padding: 12px;
+    background: #0077c7;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+
+  .add-form button:hover { opacity: 0.85; }
+
+  /* フィルター */
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .filter-btn {
+    flex-shrink: 0;
+    padding: 6px 16px;
+    border-radius: 100px;
+    border: 1.5px solid #ddd;
+    background: #fff;
+    font-size: 0.857rem;
+    font-weight: 700;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .filter-btn.active {
+    background: #0077c7;
+    border-color: #0077c7;
+    color: #fff;
+  }
+
+  /* タスク一覧 */
+  .task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .task-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: opacity 0.2s;
+  }
+
+  .task-card.done {
+    opacity: 0.55;
+  }
+
+  .task-name {
+    flex: 1;
+    font-size: 0.95rem;
+    line-height: 1.4;
+    word-break: break-all;
+  }
+
+  .task-card.done .task-name {
+    text-decoration: line-through;
+    color: #999;
+  }
+
+  /* 状態バッジ */
+  .status-badge {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 100px;
+    white-space: nowrap;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.15s;
+  }
+
+  .status-badge:hover { opacity: 0.75; }
+
+  .status-badge.todo {
+    background: #f0f0f0;
+    color: #666;
+  }
+
+  .status-badge.doing {
+    background: rgba(255, 180, 0, 0.15);
+    color: #9a6700;
+    border: 1px solid rgba(255, 180, 0, 0.4);
+  }
+
+  .status-badge.done-badge {
+    background: rgba(40, 180, 100, 0.12);
+    color: #1a7a40;
+    border: 1px solid rgba(40, 180, 100, 0.35);
+  }
+
+  /* 削除ボタン */
+  .delete-btn {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: #bbb;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .delete-btn:hover {
+    background: #fee;
+    color: #e33;
+  }
+
+  /* 空状態 */
+  .empty {
+    text-align: center;
+    padding: 48px 16px;
+    color: #aaa;
+    font-size: 0.9rem;
+  }
+
+  .empty .emoji { font-size: 2.5rem; display: block; margin-bottom: 12px; }
+
+  /* タスク数 */
+  .task-count {
+    font-size: 0.8rem;
+    color: #999;
+    margin-bottom: 12px;
+    padding-left: 2px;
+  }
+</style>
+</head>
+<body>
+
+<header>📝 Todoアプリ</header>
+
+<div class="container">
+
+  <!-- 追加フォーム -->
+  <div class="add-form">
+    <input type="text" id="new-task" placeholder="タスク名を入力..." maxlength="100">
+    <button id="add-btn">＋ タスクを追加</button>
+  </div>
+
+  <!-- フィルター -->
+  <div class="filter-bar">
+    <button class="filter-btn active" data-filter="all">すべて</button>
+    <button class="filter-btn" data-filter="todo">未着手</button>
+    <button class="filter-btn" data-filter="doing">着手中</button>
+    <button class="filter-btn" data-filter="done">完了</button>
+  </div>
+
+  <!-- タスク数 -->
+  <div class="task-count" id="task-count"></div>
+
+  <!-- タスク一覧 -->
+  <div class="task-list" id="task-list"></div>
+
+</div>
+
+<script>
+'use strict';
+
+const STATUS = {
+  todo:  { label: '未着手', cls: 'todo',       next: 'doing' },
+  doing: { label: '着手中', cls: 'doing',      next: 'done'  },
+  done:  { label: '完了',   cls: 'done-badge', next: 'todo'  },
+};
+
+let tasks = JSON.parse(localStorage.getItem('todo-tasks') || '[]');
+let filter = 'all';
+
+function save() {
+  localStorage.setItem('todo-tasks', JSON.stringify(tasks));
+}
+
+function addTask(name) {
+  tasks.unshift({ id: Date.now(), name, status: 'todo' });
+  save();
+  render();
+}
+
+function cycleStatus(id) {
+  const task = tasks.find(t => t.id === id);
+  if (!task) return;
+  task.status = STATUS[task.status].next;
+  save();
+  render();
+}
+
+function deleteTask(id) {
+  tasks = tasks.filter(t => t.id !== id);
+  save();
+  render();
+}
+
+function render() {
+  const filtered = filter === 'all' ? tasks : tasks.filter(t => t.status === filter);
+  const list = document.getElementById('task-list');
+  const count = document.getElementById('task-count');
+
+  count.textContent = `${filtered.length} 件`;
+
+  if (filtered.length === 0) {
+    list.innerHTML = `
+      <div class="empty">
+        <span class="emoji">✅</span>
+        タスクがありません
+      </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(task => `
+    <div class="task-card ${task.status === 'done' ? 'done' : ''}">
+      <span class="task-name">${escHtml(task.name)}</span>
+      <button class="status-badge ${STATUS[task.status].cls}" onclick="cycleStatus(${task.id})" title="クリックで状態を変更">
+        ${STATUS[task.status].label}
+      </button>
+      <button class="delete-btn" onclick="deleteTask(${task.id})" title="削除">✕</button>
+    </div>
+  `).join('');
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// 追加ボタン
+document.getElementById('add-btn').addEventListener('click', () => {
+  const input = document.getElementById('new-task');
+  const name = input.value.trim();
+  if (!name) return;
+  addTask(name);
+  input.value = '';
+  input.focus();
+});
+
+// Enterキーでも追加
+document.getElementById('new-task').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('add-btn').click();
+});
+
+// フィルター
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    filter = btn.dataset.filter;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  });
+});
+
+render();
+</script>
+</body>
+</html>
