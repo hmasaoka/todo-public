@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>掲示板</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    min-height: 100vh;
+  }
+
+  header {
+    background: #0077c7;
+    color: #fff;
+    padding: 18px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  header h1 { font-size: 1.1rem; font-weight: 700; }
+
+  .logout-btn {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.4);
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  .logout-btn:hover { background: rgba(255,255,255,0.3); }
+
+  .container {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+
+  /* ===== 認証画面共通 ===== */
+  .auth-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: #f5f5f5;
+  }
+
+  .auth-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 40px 32px;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+
+  .auth-card h2 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #0077c7;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+
+  .auth-card p.subtitle {
+    font-size: 0.857rem;
+    color: #999;
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  .form-group { margin-bottom: 14px; }
+
+  .form-group label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #666;
+    margin-bottom: 4px;
+  }
+
+  .form-group input,
+  .form-group textarea {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .form-group input:focus,
+  .form-group textarea:focus { border-color: #0077c7; }
+
+  .form-group textarea {
+    resize: vertical;
+    min-height: 90px;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 13px;
+    background: #0077c7;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    margin-top: 6px;
+  }
+
+  .btn-primary:hover { opacity: 0.85; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-link {
+    width: 100%;
+    padding: 10px;
+    background: transparent;
+    color: #0077c7;
+    border: 1.5px solid #0077c7;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-top: 10px;
+  }
+
+  .btn-link:hover { background: #f0f7ff; }
+
+  .msg {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.857rem;
+    margin-top: 10px;
+    display: none;
+  }
+
+  .msg.success {
+    background: rgba(40,180,100,0.1);
+    color: #1a7a40;
+    border: 1px solid rgba(40,180,100,0.3);
+    display: block;
+  }
+
+  .msg.error {
+    background: rgba(224,30,90,0.08);
+    color: #b0003f;
+    border: 1px solid rgba(224,30,90,0.25);
+    display: block;
+  }
+
+  /* ===== 掲示板 ===== */
+  .form-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+
+  .form-card h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 14px;
+    color: #0077c7;
+  }
+
+  .submit-btn {
+    width: 100%;
+    padding: 12px;
+    background: #0077c7;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    margin-top: 4px;
+  }
+
+  .submit-btn:hover { opacity: 0.85; }
+  .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .posts-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .posts-header h2 { font-size: 1rem; font-weight: 700; }
+
+  .refresh-btn {
+    background: transparent;
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    color: #666;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+
+  .refresh-btn:hover { border-color: #0077c7; color: #0077c7; }
+
+  .post-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .post-card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+
+  .post-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+
+  .post-name { font-size: 0.857rem; font-weight: 700; color: #0077c7; }
+  .post-date { font-size: 0.75rem; color: #aaa; }
+  .post-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; }
+  .post-body { font-size: 0.875rem; line-height: 1.6; color: #555; word-break: break-all; }
+
+  .empty { text-align: center; padding: 40px 16px; color: #aaa; font-size: 0.9rem; }
+  .loading { text-align: center; padding: 32px; color: #aaa; font-size: 0.9rem; }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- ===== ログイン画面 ===== -->
+<div id="screen-login" class="screen active">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h2>📋 掲示板</h2>
+      <p class="subtitle">ログインして投稿してください</p>
+
+      <div class="form-group">
+        <label>メールアドレス</label>
+        <input type="email" id="login-email" placeholder="example@email.com">
+      </div>
+
+      <div class="form-group">
+        <label>パスワード</label>
+        <input type="password" id="login-password" placeholder="パスワード">
+      </div>
+
+      <button class="btn-primary" id="login-btn">ログイン</button>
+      <button class="btn-link" id="go-register-btn">アカウントを新規登録</button>
+      <div class="msg" id="login-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 新規登録画面 ===== -->
+<div id="screen-register" class="screen">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h2>📋 新規登録</h2>
+      <p class="subtitle">アカウントを作成してください</p>
+
+      <div class="form-group">
+        <label>メールアドレス</label>
+        <input type="email" id="reg-email" placeholder="example@email.com">
+      </div>
+
+      <div class="form-group">
+        <label>パスワード</label>
+        <input type="password" id="reg-password" placeholder="パスワード（6文字以上）">
+      </div>
+
+      <div class="form-group">
+        <label>パスワード（確認）</label>
+        <input type="password" id="reg-password2" placeholder="もう一度入力">
+      </div>
+
+      <button class="btn-primary" id="register-btn">登録する</button>
+      <button class="btn-link" id="go-login-btn">ログイン画面に戻る</button>
+      <div class="msg" id="register-msg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 掲示板画面 ===== -->
+<div id="screen-board" class="screen">
+  <header>
+    <h1>📋 掲示板</h1>
+    <button class="logout-btn" id="logout-btn">ログアウト</button>
+  </header>
+
+  <div class="container">
+
+    <div class="form-card">
+      <h2>✏️ 新しい投稿</h2>
+
+      <div class="form-group">
+        <label>タイトル</label>
+        <input type="text" id="input-title" placeholder="投稿のタイトル" maxlength="100">
+      </div>
+
+      <div class="form-group">
+        <label>本文</label>
+        <textarea id="input-body" placeholder="本文を入力..." maxlength="1000"></textarea>
+      </div>
+
+      <button class="submit-btn" id="submit-btn">投稿する</button>
+      <div class="msg" id="form-msg"></div>
+    </div>
+
+    <div class="posts-header">
+      <h2>📨 投稿一覧</h2>
+      <button class="refresh-btn" id="refresh-btn">↻ 更新</button>
+    </div>
+
+    <div class="post-list" id="post-list">
+      <div class="loading">読み込み中...</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const SUPABASE_URL = 'https://ateshljxcpoaxbloldyw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_1tIEATk1iZPot6iCQElC6Q_upcZcglX';
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentUser = null;
+
+function escHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatDate(str) {
+  if (!str) return '';
+  const d = new Date(str);
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showMsg(id, type, text) {
+  const el = document.getElementById(id);
+  el.className = 'msg ' + type;
+  el.textContent = text;
+  setTimeout(() => { el.className = 'msg'; }, 4000);
+}
+
+/* ===== ログイン ===== */
+async function login() {
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  if (!email || !password) {
+    showMsg('login-msg', 'error', 'メールアドレスとパスワードを入力してください');
+    return;
+  }
+
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true;
+  btn.textContent = '確認中...';
+
+  const { data, error } = await db
+    .from('users')
+    .select('*')
+    .eq('email', email)
+    .eq('password_hash', password)
+    .single();
+
+  btn.disabled = false;
+  btn.textContent = 'ログイン';
+
+  if (error || !data) {
+    showMsg('login-msg', 'error', 'メールアドレスまたはパスワードが正しくありません');
+    return;
+  }
+
+  currentUser = data;
+  showScreen('screen-board');
+  loadPosts();
+}
+
+/* ===== 新規登録 ===== */
+async function register() {
+  const email     = document.getElementById('reg-email').value.trim();
+  const password  = document.getElementById('reg-password').value;
+  const password2 = document.getElementById('reg-password2').value;
+
+  if (!email || !password || !password2) {
+    showMsg('register-msg', 'error', 'すべての項目を入力してください');
+    return;
+  }
+
+  if (password.length < 6) {
+    showMsg('register-msg', 'error', 'パスワードは6文字以上で入力してください');
+    return;
+  }
+
+  if (password !== password2) {
+    showMsg('register-msg', 'error', 'パスワードが一致しません');
+    return;
+  }
+
+  const btn = document.getElementById('register-btn');
+  btn.disabled = true;
+  btn.textContent = '登録中...';
+
+  // メールアドレス重複チェック
+  const { data: existing } = await db
+    .from('users')
+    .select('id')
+    .eq('email', email)
+    .single();
+
+  if (existing) {
+    btn.disabled = false;
+    btn.textContent = '登録する';
+    showMsg('register-msg', 'error', 'このメールアドレスはすでに登録されています');
+    return;
+  }
+
+  const { error } = await db
+    .from('users')
+    .insert({ email, password_hash: password });
+
+  btn.disabled = false;
+  btn.textContent = '登録する';
+
+  if (error) {
+    showMsg('register-msg', 'error', '登録に失敗しました：' + error.message);
+    return;
+  }
+
+  showMsg('register-msg', 'success', '登録しました！ログイン画面に戻ります...');
+  setTimeout(() => {
+    document.getElementById('reg-email').value = '';
+    document.getElementById('reg-password').value = '';
+    document.getElementById('reg-password2').value = '';
+    showScreen('screen-login');
+  }, 2000);
+}
+
+/* ===== ログアウト ===== */
+function logout() {
+  currentUser = null;
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
+  showScreen('screen-login');
+}
+
+/* ===== 投稿一覧 ===== */
+async function loadPosts() {
+  const list = document.getElementById('post-list');
+  list.innerHTML = '<div class="loading">読み込み中...</div>';
+
+  const { data, error } = await db
+    .from('posts')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    list.innerHTML = `<div class="empty">読み込みに失敗しました：${escHtml(error.message)}</div>`;
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    list.innerHTML = '<div class="empty">まだ投稿がありません</div>';
+    return;
+  }
+
+  list.innerHTML = data.map(post => `
+    <div class="post-card">
+      <div class="post-meta">
+        <span class="post-name">${escHtml(post.name)}</span>
+        <span class="post-date">${formatDate(post.created_at)}</span>
+      </div>
+      <div class="post-title">${escHtml(post.title)}</div>
+      <div class="post-body">${escHtml(post.body)}</div>
+    </div>
+  `).join('');
+}
+
+/* ===== 投稿 ===== */
+async function submitPost() {
+  const title = document.getElementById('input-title').value.trim();
+  const body  = document.getElementById('input-body').value.trim();
+
+  if (!title || !body) {
+    showMsg('form-msg', 'error', 'すべての項目を入力してください');
+    return;
+  }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '投稿中...';
+
+  const { error } = await db.from('posts').insert({
+    name: currentUser.email,
+    title,
+    body,
+  });
+
+  btn.disabled = false;
+  btn.textContent = '投稿する';
+
+  if (error) {
+    showMsg('form-msg', 'error', '投稿に失敗しました：' + error.message);
+    return;
+  }
+
+  showMsg('form-msg', 'success', '投稿しました！');
+  document.getElementById('input-title').value = '';
+  document.getElementById('input-body').value = '';
+  loadPosts();
+}
+
+document.getElementById('login-btn').addEventListener('click', login);
+document.getElementById('go-register-btn').addEventListener('click', () => showScreen('screen-register'));
+document.getElementById('go-login-btn').addEventListener('click', () => showScreen('screen-login'));
+document.getElementById('register-btn').addEventListener('click', register);
+document.getElementById('logout-btn').addEventListener('click', logout);
+document.getElementById('submit-btn').addEventListener('click', submitPost);
+document.getElementById('refresh-btn').addEventListener('click', loadPosts);
+
+document.getElementById('login-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') login();
+});
+
+document.getElementById('reg-password2').addEventListener('keydown', e => {
+  if (e.key === 'Enter') register();
+});
+</script>
+</body>
+</html>
